@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>시계침이 맞물릴 때</title>
+
+<style>
+body {
+  margin:0;
+  background: radial-gradient(circle at top,#1a1a2e,#0b0b14);
+  color:#fff;
+  font-family: 'Pretendard', sans-serif;
+  overflow:hidden;
+}
+
+h2{
+  margin:10px 0;
+  color:#ff9de6;
+  text-shadow:0 0 12px #ff4fd8;
+}
+
+/* 시작 */
+#startScreen{
+  position:absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  background:#0b0b14;
+  z-index:10;
+}
+
+/* 전체 */
+#wrap{
+  display:flex;
+  height:100vh;
+}
+
+/* 호감도 */
+#love{
+  width:260px;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.card{
+  background:rgba(0,0,0,0.35);
+  border-radius:12px;
+  padding:6px;
+  font-size:13px;
+}
+
+.card .loveRow span:first-child{
+  font-weight:bold;
+}
+
+/* 시민 - 연두 */
+.card:nth-child(1) .loveRow span:first-child{
+  color:#b6ff7a;
+  text-shadow:0 0 8px #7CFF6B;
+}
+
+/* 결의 - 회색 */
+.card:nth-child(2) .loveRow span:first-child{
+  color:#b5b5b5;
+  text-shadow:0 0 8px #666666;
+}
+
+/* 실패 - 빨강~검붉 */
+.card:nth-child(3) .loveRow span:first-child{
+  color:#ff3b3b;
+  text-shadow:0 0 8px #7a0000;
+}
+
+/* 후 - 파랑 */
+.card:nth-child(4) .loveRow span:first-child{
+  color:#4da6ff;
+  text-shadow:0 0 8px #1e4fff;
+}
+
+.loveRow{
+  display:flex;
+  justify-content:space-between;
+}
+
+.loveNum{
+  color:#fff;
+  text-shadow:0 0 6px #ff4fd8;
+  font-weight:bold;
+}
+
+.bar{
+  width:100%;
+  height:10px;
+  background:#222;
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.fill{
+  height:100%;
+  background:linear-gradient(90deg,#ff9de6,#ffc1f0);
+}
+
+/* 중앙 */
+#center{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:center;
+  padding:20px;
+}
+
+#text{
+  width:85%;
+  min-height:90px;
+  margin-bottom:10px;
+  background:rgba(0,0,0,0.55);
+  border-radius:14px;
+  padding:12px;
+}
+
+#choices{
+  width:85%;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+button{
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(145deg,#2a2a4a,#1a1a2e);
+  color:white;
+  cursor:pointer;
+}
+
+button:hover{
+  box-shadow:0 0 10px #ff9de6;
+}
+
+.dateBtn{
+  background:#ff4fd8;
+  font-weight:bold;
+}
+
+/* 엔딩 */
+#ending{
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  background:#000;
+  font-size:22px;
+  white-space:pre-line;
+  font-family: 'Noto Serif KR', serif;
+}
+#endingText{
+  font-family: 'Noto Serif KR', serif;
+  font-size:20px;
+  line-height:1.7;
+  letter-spacing:0.5px;
+}
+
+/* 🕒 시간 UI */
+#timeUI{
+  position:fixed;
+  top:10px;
+  right:10px;
+  background:rgba(0,0,0,0.5);
+  padding:8px 12px;
+  border-radius:10px;
+  font-size:13px;
+  color:#ff9de6;
+  text-shadow:0 0 8px #ff4fd8;
+  z-index:50;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 🕒 추가 -->
+<div id="timeUI"></div>
+
+<div id="startScreen">
+  <h2>시계침이 맞물릴 때</h2>
+  <input id="playerName" placeholder="이름 입력">
+  <br><br>
+  <button onclick="start()">시작</button>
+</div>
+
+<div id="wrap">
+
+<div id="love"></div>
+
+<div id="center">
+  <div id="text"></div>
+  <div id="choices"></div>
+</div>
+
+</div>
+
+<div id="ending"></div>
+
+<!-- ⭐ 여기 아래에 추가 -->
+<div id="restartBox" style="
+position:fixed;
+bottom:40px;
+right:40px;
+display:none;
+z-index:999;
+">
+<button onclick="location.reload()"
+style="
+padding:14px 20px;
+font-size:14px;
+border-radius:14px;
+background:linear-gradient(135deg,#ff4fd8,#7a5cff);
+color:white;
+border:none;
+cursor:pointer;
+box-shadow:0 0 20px rgba(255,77,216,0.3);
+transition:0.2s;
+">
+다시 시작
+</button>
+</div>
+
+<script>
+
+let chars=[
+ {name:"시민",love:0},
+ {name:"결의",love:0},
+ {name:"실패",love:0},
+ {name:"후",love:0}
+];
+
+let locations=[
+ "카페","공원","대학가","백화점 옥상","병원","뒷골목",
+ "도서관","바닷가","호텔 앞","온실","거리","시계탑"
+];
+
+/* 🕒 시간 시스템 추가 */
+let day=1;
+let timeIndex=0; // 0 아침 1 점심 2 저녁
+
+function updateTimeUI(){
+ const t=["아침","점심","저녁"][timeIndex];
+ document.getElementById("timeUI").innerText =
+ `${day}일차 / ${t}`;
+}
+
+function nextTime(){
+ timeIndex++;
+ if(timeIndex>2){
+  timeIndex=0;
+  day++;
+ }
+ updateTimeUI();
+}
+
+/* ===== 시작 ===== */
+function start(){
+ playerName = document.getElementById("playerName").value;
+
+ document.getElementById("startScreen").style.display="none";
+ showLocations();
+ updateLove();
+ updateTimeUI();
+}
+
+/* ===== 호감도 ===== */
+function updateLove(){
+ let html="";
+ chars.forEach(c=>{
+  html+=`
+  <div class="card">
+    <div class="loveRow">
+      <span>${c.name}</span>
+      <span class="loveNum">${c.love}</span>
+    </div>
+    <div class="bar">
+      <div class="fill" style="width:${c.love}%"></div>
+    </div>
+  </div>`;
+ });
+ document.getElementById("love").innerHTML=html;
+ checkEnding();
+}
+
+/* ===== 장소 ===== */
+function showLocations(){
+ let shuffled=[...locations].sort(()=>Math.random()-0.5).slice(0,4);
+
+ let html="";
+ shuffled.forEach(l=>{
+  html+=`<button onclick="enterLocation('${l}')">${l}</button>`;
+ });
+
+ document.getElementById("choices").innerHTML=html;
+ document.getElementById("text").innerText="어디로 이동하시겠습니까?";
+}
+
+function enterLocation(loc){
+ document.getElementById("text").innerText=loc+"에 도착했습니다.";
+
+ let html="";
+ chars.forEach((c,i)=>{
+  html+=`<button onclick="talk(${i})">${c.name}</button>`;
+ });
+
+ document.getElementById("choices").innerHTML=html;
+}
+
+/* ===== 🔥 dialogue ===== */
+const dialogues={
+ 시민:[
+  "오늘도 무사하셔서 다행이에요.",
+  "조금 쉬어가셔도 괜찮아요.",
+  "당신을 기다렸어요.",
+  "이곳은 조용해서 좋아요.",
+  "괜찮으신가요?"
+ ],
+ 결의:[
+  "오늘도 햇빛 아래에서 걷는 당신을 뵙게 되어 다행입니다.",
+  "불편한 곳이 있으면 언제든 오셔도 됩니다.",
+  "지금은 중요한 시점입니다.",
+  "흔들리지 마십시오.",
+  "결정이 필요합니다."
+ ],
+ 실패:[
+  "또 왔냐?",
+  "귀찮게 하지 마.",
+  "시간 낭비야.",
+  "용건만 말하고 사라져.",
+  "네놈 참 짜증나는군."
+ ],
+ 후:[
+  "시간은 항상 어긋나지...",
+  "또 만났군?",
+  "흥미롭기도 하지.",
+  "흐름이 이상하군.",
+  "자네와 같이 있으면 어딘가 편하네."
+ ]
+};
+
+
+function talk(i){
+ let c=chars[i];
+ let pool=dialogues[c.name]||["..."];
+ let text=pool[Math.floor(Math.random()*pool.length)];
+
+ document.getElementById("text").innerText=c.name+": "+text;
+
+ let dateBtn = c.love>=50
+ ? `<button class="dateBtn" onclick="date(${i})">💖 데이트</button>`
+ : "";
+
+ document.getElementById("choices").innerHTML=`
+ <button onclick="choice(${i},5)">일상 대화</button>
+ <button onclick="choice(${i},10)">영화 관람</button>
+ <button onclick="choice(${i},15)">식사</button>
+ ${dateBtn}
+ <button onclick="showLocations()">떠난다</button>
+ `;
+}
+
+/* ===== 선택 ===== */
+function choice(i,val){
+ chars[i].love+=val;
+ if(chars[i].love>100) chars[i].love=100;
+ updateLove();
+ showLocations();
+
+ nextTime(); // 🕒 시간 진행 추가
+}
+
+/* ===== 데이트 ===== */
+function date(i){
+ document.getElementById("text").innerText=
+ chars[i].name+"와 함께 시간을 보냅니다.";
+
+ document.getElementById("choices").innerHTML=`
+ <button onclick="choice(${i},20)">카페</button>
+ <button onclick="choice(${i},25)">전망대 구경</button>
+ <button onclick="choice(${i},30)">"좋아해요."</button>
+ `;
+}
+
+/* ===== 엔딩 (서술 확장 버전) ===== */
+function checkEnding(){
+
+ let c=chars.find(x=>x.name==="시민");
+ let h=chars.find(x=>x.name==="후");
+ let f=chars.find(x=>x.name==="실패");
+ let r=chars.find(x=>x.name==="결의");
+
+ /* TRUE ENDING */
+ if(c.love>=100){
+  end("✨ TRUE ENDING ✨",
+`시민과 당신은 끝까지 함께했습니다.
+
+시계침이 맞물리는 순간처럼,
+모든 선택은 조용히 하나의 방향으로 흘러갔습니다.
+
+그는 아무 말 없이 당신 옆에 앉아 있었습니다.
+하지만 그 침묵은 불편하지 않았습니다.
+
+오히려 처음으로, 시간이 멈춘 것처럼 느껴졌습니다.
+
+“이대로도 괜찮은 걸까요?”
+
+누군가 묻는다면,
+당신은 아마 대답하지 못했을 겁니다.
+
+하지만 적어도 이 순간만큼은,
+둘의 시계는 같은 속도로 움직이고 있었습니다.`);
+  return;
+ }
+
+ /* MEAS ENDING */
+ if(h.love>=60 && f.love>=60 && r.love>=60 && c.love>=60){
+  end("✂ BAD ENDING ✂",
+`결의는 조용히 당신을 바라보다가,
+천천히 장갑을 끼었습니다.
+
+“이건… 더 이상 유지할 수 없는 구조입니다.”
+
+금속이 스치는 소리는 너무 조용해서,
+오히려 더 현실 같았습니다.
+
+누구도 도망치지 않았습니다.
+
+당신이 선택했던 모든 관계는
+이미 균열을 품고 있었기 때문입니다.
+
+그리고 마지막 순간,
+시계침이 ‘딸깍’ 하고 어긋났습니다.
+
+그 소리 이후로는
+아무 것도 이어지지 않았습니다.`);
+  return;
+ }
+
+ /* GUN ENDING */
+ if(h.love>=70 && r.love>=70){
+  end("🔫 BAD ENDING 🔫",
+`“둘 다 선택한 순간부터 이미 끝이었어.”
+
+실패는 웃지도 않았습니다.
+그저 방아쇠에 손을 올렸을 뿐입니다.
+
+탕.
+
+그 소리는 너무 갑작스러워서
+누구도 반응할 틈이 없었습니다.
+
+그 순간,
+당신이 만들어낸 모든 관계는
+한꺼번에 끊어졌습니다.
+
+남은 건 조용한 공기뿐이었습니다.
+
+그리고 아무도
+다시 시계를 맞추려 하지 않았습니다.`);
+  return;
+ }
+
+ /* BURIAL ENDING */
+ if(h.love>=80){
+  end("⛏  BAD ENDING  ⛏ ",
+`흙이 천천히 위로 쏟아졌습니다.
+
+처음에는 작게,
+그 다음에는 무겁게.
+
+“움직이지 마.”
+
+실패의 목소리는 멀어졌고,
+대신 땅의 소리가 커졌습니다.
+
+숨을 쉴수록,
+세상은 점점 좁아졌습니다.
+
+빛은 위에서 닫히고,
+소리는 아래로 잠겼습니다.
+
+결국 남는 건
+아무도 없는 정적뿐이었습니다.`);
+  return;
+ }
+}
+
+/* ===== 엔딩 ===== */
+function end(type,x){
+ document.getElementById("wrap").style.display="none";
+
+ let e=document.getElementById("ending");
+ e.style.display="flex";
+
+ e.innerHTML=`
+ <div id="endingText">${type}\n\n${x}</div>
+ `;
+
+ let text=document.getElementById("endingText");
+
+ if(type.includes("GUN")){
+  text.animate([{opacity:1},{opacity:0,transform:"scale(0.5)"}],
+  {duration:800,fill:"forwards"});
+ }
+
+ if(type.includes("BURIAL")){
+  text.animate([{transform:"translateY(0)"},{transform:"translateY(100px)",opacity:0}],
+  {duration:1500,fill:"forwards"});
+ }
+
+ if(type.includes("MEAS")){
+  text.animate([{clipPath:"inset(0)"},{clipPath:"inset(50% 0 50% 0)"}],
+  {duration:900,fill:"forwards"});
+ }
+
+ // ⭐ 추가
+ document.getElementById("restartBox").style.display="block";
+}
+
+updateLove();
+showLocations();
+
+</script>
+
+</body>
+</html>
